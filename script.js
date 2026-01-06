@@ -1,59 +1,62 @@
 const pages = document.querySelectorAll(".page");
-const video = document.getElementById("video");
-const cameraBox = document.getElementById("cameraBox");
-const canvas = document.getElementById("hiddenCanvas");
-const ctx = canvas.getContext("2d");
 
-const countdownEl = document.getElementById("countdown");
-const flash = document.querySelector(".flash");
-
-const startBooth = document.getElementById("startBooth");
+const startBoothBtn = document.getElementById("startBooth");
 const shootBtn = document.getElementById("shoot");
 const toPrintBtn = document.getElementById("toPrint");
 const downloadBtn = document.getElementById("download");
 
 const preview = document.getElementById("preview");
 const printArea = document.getElementById("printArea");
+const qrCanvas = document.getElementById("qrCanvas");
 
 const frameColor = document.getElementById("frameColor");
-const captionInput = document.getElementById("caption");
+const caption = document.getElementById("caption");
 
-canvas.width = 320;
-canvas.height = 240;
+const countdownEl = document.getElementById("countdown");
+const flash = document.querySelector(".flash");
 
-let imageData = null;
+const PHOTO_W = 320;
+const PHOTO_H = 240;
+
+const cameraCanvas = document.createElement("canvas");
+cameraCanvas.width = PHOTO_W;
+cameraCanvas.height = PHOTO_H;
+const cameraCtx = cameraCanvas.getContext("2d");
+
 let stream = null;
+let imageData = null;
+let polaroidData = null;
 
-// PAGE SWITCH
+/* ---------- PAGE ---------- */
 function showPage(i) {
   pages.forEach(p => p.classList.remove("active"));
   pages[i].classList.add("active");
 }
 
-// CAMERA START
+/* ---------- CAMERA ---------- */
 function startCamera() {
-  navigator.mediaDevices.getUserMedia({ video: true })
-    .then(s => {
-      stream = s;
-      video.srcObject = s;
-    });
+  navigator.mediaDevices.getUserMedia({ video: true }).then(s => {
+    stream = s;
+    document.getElementById("video").srcObject = s;
+  });
 }
 
-// CAMERA STOP + REMOVE VIDEO
 function destroyCamera() {
-  if (stream) stream.getTracks().forEach(t => t.stop());
-  if (cameraBox) cameraBox.remove();
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+    stream = null;
+  }
 }
 
-// COUNTDOWN
+/* ---------- COUNTDOWN ---------- */
 function countdown(sec) {
   return new Promise(res => {
     let n = sec;
     countdownEl.textContent = n;
-    const t = setInterval(() => {
+    const i = setInterval(() => {
       n--;
       if (n === 0) {
-        clearInterval(t);
+        clearInterval(i);
         countdownEl.textContent = "";
         res();
       } else countdownEl.textContent = n;
@@ -61,77 +64,136 @@ function countdown(sec) {
   });
 }
 
-// CREATE POLAROID
-function createPolaroid() {
-  const tilt = (Math.random() * 6 - 3).toFixed(1) + "deg";
+/* ---------- DATE ---------- */
+function getSketchDate() {
+  return new Date().toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric"
+  });
+}
+
+/* ---------- PREVIEW ---------- */
+function createPolaroidPreview() {
   const p = document.createElement("div");
   p.className = "polaroid";
   p.style.background = frameColor.value;
-  p.style.setProperty("--tilt", tilt);
+
   p.innerHTML = `
     <img src="${imageData}">
-    <div class="caption">${captionInput.value || "Instax Moment"}</div>
+    <div class="caption">${caption.value || "Instax Capture"}</div>
+    <div class="polaroid-date" style="transform: rotate(${Math.random()*4-2}deg)">
+      ${getSketchDate()}
+    </div>
   `;
   return p;
 }
 
-// WELCOME → CAMERA
-startBooth.onclick = () => {
+/* ---------- FINAL IMAGE ---------- */
+function createPolaroidImage() {
+  const out = document.createElement("canvas");
+  out.width = 260;
+  out.height = PHOTO_H + 80;
+  const o = out.getContext("2d");
+
+  o.fillStyle = frameColor.value;
+  o.fillRect(0, 0, out.width, out.height);
+
+  const img = new Image();
+  img.src = imageData;
+
+  return new Promise(resolve => {
+    img.onload = () => {
+      o.drawImage(img, 12, 12, 236, PHOTO_H);
+
+      o.fillStyle = "#222";
+      o.font = "18px Patrick Hand";
+      o.textAlign = "center";
+      o.fillText(caption.value || "Instax Capture", out.width / 2, PHOTO_H + 34);
+
+      o.save();
+      o.translate(out.width / 2, PHOTO_H + 58);
+      o.rotate((Math.random()*4-2) * Math.PI / 180);
+      o.font = "13px Handlee";
+      o.fillStyle = "rgba(0,0,0,0.55)";
+      o.fillText(getSketchDate(), 0, 0);
+      o.restore();
+
+      resolve(out.toDataURL("image/png"));
+    };
+  });
+}
+
+/* ---------- CLOUDINARY ---------- */
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
+async function uploadToCloudinary(base64, id) {
+  const fd = new FormData();
+  fd.append("file", base64);
+  fd.append("upload_preset", "photobooth_unsigned");
+  fd.append("public_id", "photobooth/" + id);
+
+  const r = await fetch(
+    "https://api.cloudinary.com/v1_1/dsn45eqfl/image/upload",
+    { method: "POST", body: fd }
+  );
+
+  const j = await r.json();
+  return j.secure_url;
+}
+
+/* ---------- QR ---------- */
+function generateQR(url) {
+  const size = 180;
+  qrCanvas.width = size;
+  qrCanvas.height = size;
+
+  const img = new Image();
+  img.src =
+    "https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=" +
+    encodeURIComponent(url);
+
+  img.onload = () => qrCanvas.getContext("2d").drawImage(img, 0, 0, size, size);
+}
+
+/* ---------- FLOW ---------- */
+startBoothBtn.onclick = () => {
   startCamera();
   showPage(1);
 };
 
-// TAKE PHOTO
 shootBtn.onclick = async () => {
   await countdown(3);
   flash.style.opacity = 1;
   setTimeout(() => flash.style.opacity = 0, 150);
 
-  ctx.drawImage(video, 0, 0, 320, 240);
-  imageData = canvas.toDataURL("image/png");
+  const video = document.getElementById("video");
+  cameraCtx.drawImage(video, 0, 0, PHOTO_W, PHOTO_H);
+  imageData = cameraCanvas.toDataURL("image/png");
 
   destroyCamera();
 
   preview.innerHTML = "";
-  preview.appendChild(createPolaroid());
+  preview.appendChild(createPolaroidPreview());
   showPage(2);
 };
 
-// CUSTOMIZE → PRINT
-toPrintBtn.onclick = () => {
+toPrintBtn.onclick = async () => {
   printArea.innerHTML = "";
-  const p = createPolaroid();
-  p.style.animation = "eject 1s ease";
-  printArea.appendChild(p);
+  printArea.appendChild(createPolaroidPreview());
+
+  polaroidData = await createPolaroidImage();
+  const url = await uploadToCloudinary(polaroidData, uid());
+  generateQR(url);
+
   showPage(3);
 };
 
-// DOWNLOAD
 downloadBtn.onclick = () => {
-  const out = document.createElement("canvas");
-  out.width = 260;
-  out.height = 240 + 14 * 2 + 52;
-  const octx = out.getContext("2d");
-
-  octx.fillStyle = frameColor.value;
-  octx.fillRect(0, 0, out.width, out.height);
-
-  const img = new Image();
-  img.src = imageData;
-  img.onload = () => {
-    octx.drawImage(img, 14, 14, 232, 240);
-    octx.fillStyle = "#444";
-    octx.font = "16px Comic Sans MS";
-    octx.textAlign = "center";
-    octx.fillText(
-      captionInput.value || "Instax Moment",
-      out.width / 2,
-      out.height - 22
-    );
-
-    const a = document.createElement("a");
-    a.download = "instax-polaroid.png";
-    a.href = out.toDataURL();
-    a.click();
-  };
+  const a = document.createElement("a");
+  a.href = polaroidData;
+  a.download = "polaroid.png";
+  a.click();
 };

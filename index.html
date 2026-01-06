@@ -1,61 +1,63 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Photobooth Machine</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sketchbook Photobooth</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Handlee&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div id="app">
 
-  <!-- PAGE 0: WELCOME -->
-  <section class="page active" id="page0">
-    <h1> PHOTOBOOTH</h1>
-  
-    <button id="startBooth">ENTER</button>
+  <section class="page active">
+    <div class="booth-shell">
+      <div class="instax-label">Instax Capture</div>
+      <h1>Sketchbook Booth</h1>
+      <p class="subtitle">Step inside & capture a memory</p>
+      <div class="slot"></div>
+      <button id="startBooth" class="sketch-btn big-btn">▶ Start Booth</button>
+    </div>
   </section>
 
-  <!-- PAGE 1: CAMERA -->
-  <section class="page" id="page1">
-    <h1> Take Photo</h1>
-    <div class="camera-box" id="cameraBox">
+  <section class="page">
+    <h1>Take a Sketch</h1>
+    <div class="camera-box sketch-frame">
       <video id="video" autoplay playsinline></video>
       <div id="countdown"></div>
       <div class="flash"></div>
     </div>
-    <button id="shoot">Cickk</button>
+    <button id="shoot" class="sketch-btn">Click</button>
   </section>
 
-  <!-- PAGE 2: CUSTOMIZE -->
-  <section class="page" id="page2">
-    <h1> Add Your Touch !</h1>
+  <section class="page">
+    <h1>Add Your Magic!</h1>
     <div id="preview"></div>
 
-    <select id="frameColor">
-      <option value="#ffffff">Classic White</option>
-      <option value="#fde4ec">Pink</option>
-      <option value="#e3f2fd">Blue</option>
-      <option value="#e8f5e9">Mint</option>
-      <option value="#fff3e0">Peach</option>
+    <select id="frameColor" class="sketch-input">
+      <option value="#ffffff">Paper White</option>
+      <option value="#fff1c1">Old Paper</option>
+      <option value="#fce4ec">Pink Page</option>
+      <option value="#e3f2fd">Blue Page</option>
     </select>
 
-    <input id="caption" placeholder="Write a caption…" maxlength="30">
-    <button id="toPrint">Next →</button>
+    <input id="caption" class="sketch-input" placeholder="Write something…" maxlength="30">
+    <button id="toPrint" class="sketch-btn">Next →</button>
   </section>
 
-  <!-- PAGE 3: PRINT -->
-  <section class="page" id="page3">
-    <h1> Print</h1>
+  <section class="page">
+    <h1>Your Polaroid</h1>
     <div id="printArea"></div>
-    <button id="download">Download Polaroid</button>
+
+    <canvas id="qrCanvas"></canvas>
+
+    <button id="download" class="sketch-btn">Download on this device</button>
   </section>
 
 </div>
 
-<canvas id="hiddenCanvas"></canvas>
 <script src="script.js"></script>
 </body>
 </html>
-
